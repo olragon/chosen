@@ -393,11 +393,22 @@ class Chosen extends AbstractChosen
     this.no_results_clear()
 
     results = 0
-
     searchText = if @search_field.val() is @default_text then "" else $('<div/>').text($.trim(@search_field.val())).html()
     regexAnchor = if @search_contains then "" else "^"
+
     regex = new RegExp(regexAnchor + searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), 'i')
     zregex = new RegExp(searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), 'i')
+
+    if @search_any and searchText.length > 0
+      searchText = searchText.replace(/[-[\]{}()*+?.,\\^$|#]/g, "\\$&")
+      regexRule = if @search_contains then '((' + searchText + ')' else '(^(' + searchText + ')'
+
+      if searchText.split(' ').length > 1
+        words = searchText.split(' ')
+        regexRule += '|('+ word.replace(/// ///, '', 'g') + ')' for word in words
+
+      regexRule += ')'
+      regex = zregex = new RegExp(regexRule, 'ig')
 
     for option in @results_data
       if not option.disabled and not option.empty
@@ -422,9 +433,13 @@ class Chosen extends AbstractChosen
 
           if found
             if searchText.length
-              startpos = option.html.search zregex
-              text = option.html.substr(0, startpos + searchText.length) + '</em>' + option.html.substr(startpos + searchText.length)
-              text = text.substr(0, startpos) + '<em>' + text.substr(startpos)
+              if @search_any
+                text = option.html.replace zregex, (match) ->
+                  return '<em>' + match + '</em>'
+              else
+                startpos = option.html.search zregex
+                text = option.html.substr(0, startpos + searchText.length) + '</em>' + option.html.substr(startpos + searchText.length)
+                text = text.substr(0, startpos) + '<em>' + text.substr(startpos)
             else
               text = option.html
 

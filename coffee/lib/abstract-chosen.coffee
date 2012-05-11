@@ -30,6 +30,7 @@ class AbstractChosen
     @allow_single_deselect = if @options.allow_single_deselect? and @form_field.options[0]? and @form_field.options[0].text is "" then @options.allow_single_deselect else false
     @disable_search_threshold = @options.disable_search_threshold || 0
     @search_contains = @options.search_contains || false
+    @search_any = @options.search_any || false
     @choices = 0
     @max_selected_options = @options.max_selected_options || Infinity
 
