@@ -166,7 +166,6 @@ class Chosen extends AbstractChosen
   results_build: ->
     @parsing = true
     @results_data = root.SelectParser.select_to_array @form_field
-
     if @is_multiple and @choices > 0
       @search_choices.find("li.search-choice").remove()
       @choices = 0
@@ -400,8 +399,9 @@ class Chosen extends AbstractChosen
     zregex = new RegExp(searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), 'i')
 
     if @search_any and searchText.length > 0
+      orgRegex = regex
       searchText = searchText.replace(/[-[\]{}()*+?.,\\^$|#]/g, "\\$&")
-      regexRule = if @search_contains then '((' + searchText + ')' else '(^(' + searchText + ')'
+      regexRule = if @search_contains then '((' + searchText + ')' else '((^' + searchText + ')'
 
       if searchText.split(' ').length > 1
         words = searchText.split(' ')
@@ -409,8 +409,10 @@ class Chosen extends AbstractChosen
 
       regexRule += ')'
       regex = zregex = new RegExp(regexRule, 'ig')
+      regexFirst = new RegExp('^'+searchText.split(' ')[0], 'i')
 
-    for option in @results_data
+    scores = {}
+    for option, index in @results_data
       if not option.disabled and not option.empty
         if option.group
           $('#' + option.dom_id).css('display', 'none')
@@ -431,9 +433,13 @@ class Chosen extends AbstractChosen
                   found = true
                   results += 1
 
+          score = 0
           if found
             if searchText.length
               if @search_any
+                score = if option.html.match(orgRegex) then 1 else 0
+                score += if option.html.match(regexFirst) then 0.5 else 0
+                score += if option.html.match(zregex) then option.html.match(zregex).length / option.html.length else 0
                 text = option.html.replace zregex, (match) ->
                   return '<em>' + match + '</em>'
               else
@@ -450,11 +456,15 @@ class Chosen extends AbstractChosen
           else
             this.result_clear_highlight() if @result_highlight and result_id is @result_highlight.attr 'id'
             this.result_deactivate result
+          
+          if @search_any and @results_data[index] then @results_data[index]['score'] = score
 
-    if results < 1 and searchText.length
-      this.no_results searchText
-    else
-      this.winnow_results_set_highlight()
+    @results_data.sort (option1, option2) ->
+      if option1.score < option2.score then return 1
+      else if option1.score > option2.score then return -1
+      return 0
+    #$('li', @container).each (index, element) ->
+
 
   winnow_results_clear: ->
     @search_field.val ""

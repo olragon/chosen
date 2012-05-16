@@ -811,7 +811,7 @@ Copyright (c) 2011 by Harvest
     };
 
     Chosen.prototype.winnow_results = function() {
-      var found, option, part, parts, regex, regexAnchor, regexRule, result, result_id, results, searchText, startpos, text, word, words, zregex, _i, _j, _k, _len, _len1, _len2, _ref;
+      var found, index, option, orgRegex, part, parts, regex, regexAnchor, regexFirst, regexRule, result, result_id, results, score, scores, searchText, startpos, text, word, words, zregex, _i, _j, _k, _len, _len1, _len2, _ref;
       this.no_results_clear();
       results = 0;
       searchText = this.search_field.val() === this.default_text ? "" : $('<div/>').text($.trim(this.search_field.val())).html();
@@ -819,8 +819,9 @@ Copyright (c) 2011 by Harvest
       regex = new RegExp(regexAnchor + searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), 'i');
       zregex = new RegExp(searchText.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&"), 'i');
       if (this.search_any && searchText.length > 0) {
+        orgRegex = regex;
         searchText = searchText.replace(/[-[\]{}()*+?.,\\^$|#]/g, "\\$&");
-        regexRule = this.search_contains ? '((' + searchText + ')' : '(^(' + searchText + ')';
+        regexRule = this.search_contains ? '((' + searchText + ')' : '((^' + searchText + ')';
         if (searchText.split(' ').length > 1) {
           words = searchText.split(' ');
           for (_i = 0, _len = words.length; _i < _len; _i++) {
@@ -830,10 +831,12 @@ Copyright (c) 2011 by Harvest
         }
         regexRule += ')';
         regex = zregex = new RegExp(regexRule, 'ig');
+        regexFirst = new RegExp('^' + searchText.split(' ')[0], 'i');
       }
+      scores = {};
       _ref = this.results_data;
-      for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-        option = _ref[_j];
+      for (index = _j = 0, _len1 = _ref.length; _j < _len1; index = ++_j) {
+        option = _ref[index];
         if (!option.disabled && !option.empty) {
           if (option.group) {
             $('#' + option.dom_id).css('display', 'none');
@@ -856,9 +859,13 @@ Copyright (c) 2011 by Harvest
                 }
               }
             }
+            score = 0;
             if (found) {
               if (searchText.length) {
                 if (this.search_any) {
+                  score = option.html.match(orgRegex) ? 1 : 0;
+                  score += option.html.match(regexFirst) ? 0.5 : 0;
+                  score += option.html.match(zregex) ? option.html.match(zregex).length / option.html.length : 0;
                   text = option.html.replace(zregex, function(match) {
                     return '<em>' + match + '</em>';
                   });
@@ -881,14 +888,20 @@ Copyright (c) 2011 by Harvest
               }
               this.result_deactivate(result);
             }
+            if (this.search_any && this.results_data[index]) {
+              this.results_data[index]['score'] = score;
+            }
           }
         }
       }
-      if (results < 1 && searchText.length) {
-        return this.no_results(searchText);
-      } else {
-        return this.winnow_results_set_highlight();
-      }
+      return this.results_data.sort(function(option1, option2) {
+        if (option1.score < option2.score) {
+          return 1;
+        } else if (option1.score > option2.score) {
+          return -1;
+        }
+        return 0;
+      });
     };
 
     Chosen.prototype.winnow_results_clear = function() {
